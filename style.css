@@ -1,0 +1,430 @@
+:root {
+    --bg-color: #f0f4f8;
+    --wood-texture: url('wood_texture.png');
+    --board-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+    --slot-depth: inset 2px 2px 5px rgba(0, 0, 0, 0.4), inset -1px -1px 2px rgba(255, 255, 255, 0.3);
+    --block-color: #3b82f6;
+    /* Default blue */
+    --block-size: 50px;
+    --block-shadow: 2px 4px 6px rgba(0, 0, 0, 0.3), inset 2px 2px 5px rgba(255, 255, 255, 0.4), inset -2px -2px 5px rgba(0, 0, 0, 0.1);
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Fredoka', sans-serif;
+    background-color: var(--bg-color);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    color: #333;
+    overflow: hidden;
+    /* Prevent scrolling if possible */
+}
+
+.app-container {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100vh;
+    max-width: 1200px;
+}
+
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 2rem;
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    z-index: 10;
+}
+
+h1 {
+    margin: 0;
+    font-size: 1.5rem;
+    color: #4a5568;
+}
+
+button {
+    background: white;
+    border: 1px solid #ccc;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: inherit;
+    font-weight: 600;
+    transition: all 0.2s;
+}
+
+button:hover {
+    background: #f7fafc;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-evenly;
+    /* Distribute vertical space */
+    padding: 1rem;
+    gap: 1rem;
+}
+
+.board-container {
+    background-image: var(--wood-texture);
+    background-size: cover;
+    background-repeat: repeat;
+    padding: 2rem;
+    border-radius: 12px;
+    box-shadow: var(--board-shadow);
+    display: flex;
+    justify-content: flex-start;
+    /* Changed from center to allow scroll from start */
+    align-items: flex-end;
+    /* Flexible height to accommodate growing content */
+    flex: 1;
+    min-height: 50vh;
+    overflow: auto;
+    /* Allow both scroll directions if needed */
+    width: 90%;
+}
+
+.board {
+    display: flex;
+    gap: 1.5rem;
+    align-items: flex-end;
+    margin: auto;
+    /* Centers content when it fits, allows scroll when it doesn't */
+    padding-bottom: 20px;
+    /* Space for scrollbar */
+}
+
+.column {
+    display: flex;
+    flex-direction: column-reverse;
+    /* Stack from bottom up */
+    align-items: center;
+    gap: 10px;
+}
+
+/* The slots/holes on the board */
+.slot {
+    width: var(--block-size);
+    height: var(--block-size);
+    border-radius: 50%;
+    background-color: rgba(60, 40, 20, 0.2);
+    box-shadow: var(--slot-depth);
+    position: relative;
+    /* For placing blocks inside */
+    transition: width 0.3s, height 0.3s;
+}
+
+/* The label/tile at the bottom */
+.column-label {
+    margin-top: 15px;
+    /* Because of column-reverse, this is actually usually at the "end" of the flex container logically, but visually at bottom. Wait. 
+       If flex-direction is column-reverse, the first child is at the bottom.
+       Let's use column-reverse for the slots wrapper, OR just use normal column and justify-content: flex-end. 
+       Let's stick to normal column for simplicity and just reverse the order of rendering slots if needed, or justify-end.
+    */
+}
+
+/* Actually, let's restructure the column slightly in JS/HTML to make it easier.
+   Container -> Slots (flex-col-reverse)
+             -> Label
+   Wait, label matches column. 
+*/
+.col-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.slots-container {
+    display: flex;
+    flex-direction: column-reverse;
+    /* 1 at bottom, N at top */
+    gap: 8px;
+    padding-bottom: 10px;
+}
+
+.number-tile {
+    width: calc(var(--block-size) * 1.2);
+    height: calc(var(--block-size) * 1.2);
+    background: #fdfdfd;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #1f2937;
+    box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.1);
+    user-select: none;
+}
+
+/* The Block */
+.block {
+    width: var(--block-size);
+    height: var(--block-size);
+    background-color: var(--block-color);
+    border-radius: 50%;
+    box-shadow: var(--block-shadow);
+    cursor: grab;
+    position: relative;
+    /* relative to slot */
+    z-index: 2;
+    transition: transform 0.1s;
+}
+
+.block:active {
+    cursor: grabbing;
+    transform: scale(0.95);
+}
+
+/* Tray Area */
+.tray-container {
+    width: 90%;
+    background: rgba(255, 255, 255, 0.5);
+    border-radius: 12px;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+}
+
+.tray-container h2 {
+    margin: 0 0 10px 0;
+    font-size: 1rem;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.tray {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: calc(var(--block-size) + 20px);
+    width: 100%;
+}
+
+.source-block {
+    /* The infinite source block */
+    width: var(--block-size);
+    height: var(--block-size);
+    background-color: var(--block-color);
+    border-radius: 50%;
+    box-shadow: var(--block-shadow);
+    cursor: grab;
+    transition: transform 0.2s;
+}
+
+.source-block:hover {
+    transform: scale(1.1);
+}
+
+/* Modal */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 100;
+    opacity: 1;
+    transition: opacity 0.3s;
+}
+
+.modal.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.modal-content {
+    background: white;
+    padding: 2rem;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 400px;
+    position: relative;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+}
+
+.close {
+    position: absolute;
+    top: 10px;
+    right: 15px;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: #aaa;
+}
+
+.close:hover {
+    color: #333;
+}
+
+.setting-group {
+    margin-bottom: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.setting-group label {
+    font-weight: 600;
+    color: #444;
+}
+
+.setting-group input[type="range"] {
+    width: 100%;
+}
+
+.setting-group input[type="color"] {
+    width: 100px;
+    height: 40px;
+    border: none;
+    cursor: pointer;
+}
+
+/* Animation for dropping */
+@keyframes popIn {
+    0% {
+        transform: scale(0);
+        opacity: 0;
+    }
+
+    80% {
+        transform: scale(1.1);
+        opacity: 1;
+    }
+
+    100% {
+        transform: scale(1);
+    }
+}
+
+.block.placed {
+    animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+/* Visibility classes */
+.invisible {
+    visibility: hidden;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.5s;
+}
+
+/* Maru (Circle) for columns */
+.maru-mark {
+    position: absolute;
+    bottom: -10px;
+    left: 50%;
+    transform: translateX(-50%) scale(0);
+    width: 80%;
+    height: auto;
+    pointer-events: none;
+    z-index: 5;
+    transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.maru-mark.show {
+    transform: translateX(-50%) scale(1);
+}
+
+.col-wrapper {
+    position: relative;
+    /* For positioning the Maru */
+}
+
+/* Victory Overlay */
+.victory-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(255, 255, 255, 0.85);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 50;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.5s;
+}
+
+.victory-overlay.show {
+    opacity: 1;
+    pointer-events: all;
+}
+
+.hanamaru {
+    width: 300px;
+    height: 300px;
+    object-fit: contain;
+    animation: spinIn 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes spinIn {
+    0% {
+        transform: scale(0) rotate(-180deg);
+        opacity: 0;
+    }
+
+    100% {
+        transform: scale(1) rotate(0deg);
+        opacity: 1;
+    }
+}
+
+.reset-btn {
+    margin-top: 2rem;
+    padding: 1rem 3rem;
+    font-size: 1.5rem;
+    background: #FF5722;
+    color: white;
+    border: none;
+    border-radius: 50px;
+    box-shadow: 0 4px 15px rgba(255, 87, 34, 0.4);
+    cursor: pointer;
+    animation: bounce 2s infinite;
+}
+
+.reset-btn:hover {
+    background: #F4511E;
+    transform: scale(1.05);
+}
+
+@keyframes bounce {
+
+    0%,
+    20%,
+    50%,
+    80%,
+    100% {
+        transform: translateY(0);
+    }
+
+    40% {
+        transform: translateY(-10px);
+    }
+
+    60% {
+        transform: translateY(-5px);
+    }
+}

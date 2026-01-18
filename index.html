@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ブロックをならべよう</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div class="app-container">
+        <header>
+            <h1>ブロックをならべよう</h1>
+            <button id="settings-btn" aria-label="Settings">⚙️ 設定</button>
+        </header>
+
+        <main>
+            <div class="board-container">
+                <div id="board" class="board">
+                    <!-- Columns will be generated here -->
+                </div>
+            </div>
+
+            <div class="tray-container">
+                <h2>ブロック</h2>
+                <div id="tray" class="tray">
+                    <div class="draggable-block source-block" draggable="true"></div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Victory Overlay -->
+    <div id="victory-overlay" class="victory-overlay">
+        <!-- Image Hanamaru -->
+        <img src="hanamaru.png" class="hanamaru" alt="Hanamaru">
+        <button id="reset-btn" class="reset-btn">もう一回！</button>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="modal hidden">
+        <div class="modal-content">
+            <span id="close-modal" class="close">&times;</span>
+            <h2>設定</h2>
+
+            <div class="setting-group">
+                <label for="col-count">列の数 (1-10): <span id="col-val">5</span></label>
+                <input type="range" id="col-count" min="1" max="10" value="5">
+            </div>
+
+            <div class="setting-group">
+                <label for="block-color">ブロックの色:</label>
+                <input type="color" id="block-color" value="#3b82f6">
+            </div>
+
+            <div class="setting-group">
+                <label for="block-size">ブロックの大きさ:</label>
+                <input type="range" id="block-size" min="30" max="80" value="50">
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+
+</html>
