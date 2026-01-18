@@ -267,20 +267,18 @@ function setupEventListeners() {
         const type = e.dataTransfer.getData('text/plain');
         if (type !== 'new-block') return;
 
-        // Find the closest drop zone (slots-container or slot)
+        // Find the closest slot
         const target = e.target;
-        const slotsContainer = target.closest('.slots-container');
+        // Target must be a slot or inside a slot
+        const slot = target.closest('.slot');
 
-        if (slotsContainer) {
-            const colIndex = parseInt(slotsContainer.dataset.colIndex);
-            addBlockToColumn(colIndex, slotsContainer);
+        if (slot) {
+            addBlockToSlot(slot);
         }
     });
 
     // Touch support for mobile devices
     let dragClone = null;
-    let dragOffsetX = 0;
-    let dragOffsetY = 0;
 
     sourceBlock.addEventListener('touchstart', (e) => {
         e.preventDefault(); // Prevent scrolling
@@ -290,30 +288,36 @@ function setupEventListeners() {
         // Create clone
         dragClone = sourceBlock.cloneNode(true);
         dragClone.style.position = 'fixed';
-        dragClone.style.zIndex = '1000';
-        dragClone.style.pointerEvents = 'none'; // Allow finding element below
-        dragClone.style.opacity = '0.8';
+        dragClone.style.zIndex = '9999'; // Max z-index
+        dragClone.style.pointerEvents = 'none'; // Necessary to detect element below
+        dragClone.style.opacity = '0.9';
         dragClone.style.transform = 'scale(1.1)';
-        dragClone.classList.remove('source-block'); // Avoid side effects
+        dragClone.classList.remove('source-block');
+        dragClone.style.width = `${rect.width}px`;
+        dragClone.style.height = `${rect.height}px`;
 
-        // Center on touch but shift up so it's visible above finger
-        const moveOffset = 80;
+        // Offset to show above finger
+        const xOffset = rect.width / 2;
+        const yOffset = rect.height * 1.5;
 
-        dragClone.style.left = `${touch.clientX - (rect.width / 2)}px`;
-        dragClone.style.top = `${touch.clientY - (rect.height / 2) - moveOffset}px`;
+        dragClone.style.left = `${touch.clientX - xOffset}px`;
+        dragClone.style.top = `${touch.clientY - yOffset}px`;
 
         document.body.appendChild(dragClone);
     }, { passive: false });
 
     document.addEventListener('touchmove', (e) => {
         if (!dragClone) return;
-        e.preventDefault(); // Prevent scrolling while dragging
+        e.preventDefault(); // Prevent scrolling
         const touch = e.touches[0];
-        const rect = sourceBlock.getBoundingClientRect(); // Using source dimensions for consistency
-        const moveOffset = 80;
 
-        dragClone.style.left = `${touch.clientX - (rect.width / 2)}px`;
-        dragClone.style.top = `${touch.clientY - (rect.height / 2) - moveOffset}px`;
+        // Match initial offset logic
+        const rect = dragClone.getBoundingClientRect();
+        const xOffset = rect.width / 2;
+        const yOffset = rect.height * 1.5;
+
+        dragClone.style.left = `${touch.clientX - xOffset}px`;
+        dragClone.style.top = `${touch.clientY - yOffset}px`;
     }, { passive: false });
 
     document.addEventListener('touchend', (e) => {
@@ -323,56 +327,69 @@ function setupEventListeners() {
         dragClone.remove();
         dragClone = null;
 
-        // Find drop target
-        // We temporarily hid the clone so we can look 'under' it, although pointer-events: none handles this.
+        // Check drop target at the finger position
         const target = document.elementFromPoint(touch.clientX, touch.clientY);
 
         if (target) {
-            const slotsContainer = target.closest('.slots-container');
-            if (slotsContainer) {
-                const colIndex = parseInt(slotsContainer.dataset.colIndex);
-                addBlockToColumn(colIndex, slotsContainer);
+            const slot = target.closest('.slot');
+            if (slot) {
+                addBlockToSlot(slot);
             }
         }
     });
 }
 
 function resetGame() {
-    state.filled = {};
+    state.filled = {}; // This will be per-column count, derived from slots
     state.allComplete = false;
     victoryOverlay.classList.remove('show');
     trayEl.classList.remove('invisible');
-    renderBoard(); // Re-creates board and resets filled counts
+    renderBoard();
 }
 
-function addBlockToColumn(colIndex, containerEl) {
+function addBlockToSlot(slotEl) {
     if (state.allComplete) return;
 
-    const currentFilled = state.filled[colIndex];
-    const maxCapacity = colIndex; // Height is equal to column index
+    // Check if slot is empty
+    if (slotEl.children.length > 0) return; // Already has a block
 
-    if (currentFilled < maxCapacity) {
-        // Can place
-        const slots = containerEl.querySelectorAll('.slot');
-        const targetSlot = slots[currentFilled];
+    // Create block
+    const block = document.createElement('div');
+    block.className = 'block placed';
+    slotEl.appendChild(block);
 
-        // Create block
-        const block = document.createElement('div');
-        block.className = 'block placed'; // 'placed' triggers animation
+    playSnapSound();
 
-        targetSlot.appendChild(block);
+    // Check Column Completion
+    const colIndex = parseInt(slotEl.dataset.col);
+    checkColumnComplete(colIndex);
+}
 
-        state.filled[colIndex]++;
-        playSnapSound();
+function checkColumnComplete(colIndex) {
+    // Check all slots in this column
+    const slotsContainer = document.querySelector(`.slots-container[data-col-index="${colIndex}"]`);
+    if (!slotsContainer) return;
 
-        // Check for Column Completion
-        if (state.filled[colIndex] === maxCapacity) {
+    const slots = slotsContainer.querySelectorAll('.slot');
+    const totalSlots = slots.length;
+    let filledCount = 0;
+
+    slots.forEach(s => {
+        if (s.children.length > 0) filledCount++;
+    });
+
+    // Update state
+    if (!state.filled[colIndex]) state.filled[colIndex] = 0;
+    state.filled[colIndex] = filledCount;
+
+    if (filledCount === totalSlots) {
+        // Only trigger if not already triggered? 
+        const maru = document.getElementById(`maru-${colIndex}`);
+        if (maru && !maru.classList.contains('show')) {
             setTimeout(() => {
                 triggerColumnComplete(colIndex);
-            }, 300); // Slight delay after snap
+            }, 300);
         }
-    } else {
-        // Full
     }
 }
 
