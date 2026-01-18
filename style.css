@@ -28,6 +28,9 @@ body {
     flex-direction: column;
     width: 100%;
     height: 100vh;
+    /* Fallback */
+    height: 100dvh;
+    /* Mobile viewport fix */
     max-width: 1200px;
 }
 
@@ -35,7 +38,7 @@ header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 1rem 2rem;
+    padding: 0.5rem 1rem;
     background: rgba(255, 255, 255, 0.8);
     backdrop-filter: blur(10px);
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
@@ -70,17 +73,17 @@ main {
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: space-evenly;
-    /* Distribute vertical space */
-    padding: 1rem;
-    gap: 1rem;
+    justify-content: center;
+    padding: 0.5rem;
+    gap: 0.5rem;
+    overflow: hidden;
 }
 
 .board-container {
     background-image: var(--wood-texture);
     background-size: cover;
     background-repeat: repeat;
-    padding: 2rem;
+    padding: 1rem;
     border-radius: 12px;
     box-shadow: var(--board-shadow);
     display: flex;
@@ -88,10 +91,10 @@ main {
     align-items: flex-end;
     /* Flexible height to accommodate growing content */
     flex: 1;
-    min-height: 50vh;
+    min-height: 0;
     overflow: hidden;
     /* Prevent scrolling as requested */
-    width: 90%;
+    width: 95%;
     position: relative;
     /* For absolute positioning context if needed */
 }
