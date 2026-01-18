@@ -84,15 +84,16 @@ main {
     border-radius: 12px;
     box-shadow: var(--board-shadow);
     display: flex;
-    justify-content: flex-start;
-    /* Changed from center to allow scroll from start */
+    justify-content: center;
     align-items: flex-end;
     /* Flexible height to accommodate growing content */
     flex: 1;
     min-height: 50vh;
-    overflow: auto;
-    /* Allow both scroll directions if needed */
+    overflow: hidden;
+    /* Prevent scrolling as requested */
     width: 90%;
+    position: relative;
+    /* For absolute positioning context if needed */
 }
 
 .board {
@@ -103,6 +104,10 @@ main {
     /* Centers content when it fits, allows scroll when it doesn't */
     padding-bottom: 20px;
     /* Space for scrollbar */
+    transform-origin: bottom center;
+    /* Scale from bottom center */
+    transition: transform 0.3s ease-out;
+    /* Smooth scaling */
 }
 
 .column {
@@ -226,6 +231,8 @@ main {
     box-shadow: var(--block-shadow);
     cursor: grab;
     transition: transform 0.2s;
+    touch-action: none;
+    /* Prevent scrolling on touch */
 }
 
 .source-block:hover {

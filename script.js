@@ -103,6 +103,53 @@ function init() {
     renderBoard();
     setupEventListeners();
     updateStyles();
+
+    // Initial scale adjustment
+    setTimeout(adjustBoardScale, 100);
+    window.addEventListener('resize', adjustBoardScale);
+}
+
+function adjustBoardScale() {
+    const container = document.querySelector('.board-container');
+    const board = document.getElementById('board');
+
+    if (!container || !board) return;
+
+    // Reset scale to measure true size
+    board.style.transform = 'scale(1)';
+    // Force layout update if needed, but usually waiting for next frame is better.
+    // However, since we are inside a function, let's grab dimensions now.
+
+    const containerWidth = container.clientWidth;
+    const containerHeight = container.clientHeight;
+
+    // Get actual content dimensions
+    // We add some padding/margin allowance
+    const boardWidth = board.scrollWidth;
+    const boardHeight = board.scrollHeight;
+
+    const paddingX = 40; // 2rem + extra
+    const paddingY = 40;
+
+    const availableWidth = containerWidth - paddingX;
+    const availableHeight = containerHeight - paddingY;
+
+    // Calculate scale required to fit
+    let scaleX = availableWidth / boardWidth;
+    let scaleY = availableHeight / boardHeight;
+
+    // Use the smaller scale to ensure it fits in both dimensions
+    let scale = Math.min(scaleX, scaleY);
+
+    // Don't scale up if it fits (optional, but usually looks better not to become huge)
+    // But user wants "max visibility", so maybe scaling up is okay? 
+    // Let's limit max scale to 1.0 to avoid pixelation, 
+    // BUT if the screen is huge and blocks are small, maybe they want it big?
+    // Let's stick to max 1.0 for now to keep quality.
+    if (scale > 1) scale = 1;
+
+    // Apply scale
+    board.style.transform = `scale(${scale})`;
 }
 
 function updateStyles() {
@@ -183,6 +230,7 @@ function setupEventListeners() {
         state.columns = parseInt(e.target.value);
         colValDisplay.textContent = state.columns;
         renderBoard();
+        adjustBoardScale();
     });
 
     colorInput.addEventListener('input', (e) => {
@@ -193,6 +241,7 @@ function setupEventListeners() {
     sizeInput.addEventListener('input', (e) => {
         state.blockSize = parseInt(e.target.value);
         updateStyles();
+        adjustBoardScale();
     });
 
     // Drag and Drop Logic
@@ -228,7 +277,63 @@ function setupEventListeners() {
         }
     });
 
-    // Touch support (simplified for mobile browsers if needed)
+    // Touch support for mobile devices
+    let dragClone = null;
+    let dragOffsetX = 0;
+    let dragOffsetY = 0;
+
+    sourceBlock.addEventListener('touchstart', (e) => {
+        e.preventDefault(); // Prevent scrolling
+        const touch = e.touches[0];
+        const rect = sourceBlock.getBoundingClientRect();
+
+        // Create clone
+        dragClone = sourceBlock.cloneNode(true);
+        dragClone.style.position = 'fixed';
+        dragClone.style.zIndex = '1000';
+        dragClone.style.pointerEvents = 'none'; // Allow finding element below
+        dragClone.style.opacity = '0.8';
+        dragClone.style.transform = 'scale(1.1)';
+        dragClone.classList.remove('source-block'); // Avoid side effects
+
+        // Center on touch or keep relative offset
+        dragOffsetX = rect.width / 2;
+        dragOffsetY = rect.height / 2;
+
+        dragClone.style.left = `${touch.clientX - dragOffsetX}px`;
+        dragClone.style.top = `${touch.clientY - dragOffsetY}px`;
+
+        document.body.appendChild(dragClone);
+    }, { passive: false });
+
+    document.addEventListener('touchmove', (e) => {
+        if (!dragClone) return;
+        e.preventDefault(); // Prevent scrolling while dragging
+        const touch = e.touches[0];
+
+        dragClone.style.left = `${touch.clientX - dragOffsetX}px`;
+        dragClone.style.top = `${touch.clientY - dragOffsetY}px`;
+    }, { passive: false });
+
+    document.addEventListener('touchend', (e) => {
+        if (!dragClone) return;
+
+        const touch = e.changedTouches[0];
+        dragClone.remove();
+        dragClone = null;
+
+        // Find drop target
+        // We temporarily hid the clone so we can look 'under' it, although pointer-events: none handles this.
+        const target = document.elementFromPoint(touch.clientX, touch.clientY);
+
+        if (target) {
+            const slotsContainer = target.closest('.slots-container');
+            if (slotsContainer) {
+                const colIndex = parseInt(slotsContainer.dataset.colIndex);
+                addBlockToColumn(colIndex, slotsContainer);
+            }
+        }
+    });
 }
 
 function resetGame() {
