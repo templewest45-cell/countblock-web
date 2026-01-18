@@ -296,12 +296,11 @@ function setupEventListeners() {
         dragClone.style.transform = 'scale(1.1)';
         dragClone.classList.remove('source-block'); // Avoid side effects
 
-        // Center on touch or keep relative offset
-        dragOffsetX = rect.width / 2;
-        dragOffsetY = rect.height / 2;
+        // Center on touch but shift up so it's visible above finger
+        const moveOffset = 80;
 
-        dragClone.style.left = `${touch.clientX - dragOffsetX}px`;
-        dragClone.style.top = `${touch.clientY - dragOffsetY}px`;
+        dragClone.style.left = `${touch.clientX - (rect.width / 2)}px`;
+        dragClone.style.top = `${touch.clientY - (rect.height / 2) - moveOffset}px`;
 
         document.body.appendChild(dragClone);
     }, { passive: false });
@@ -310,9 +309,11 @@ function setupEventListeners() {
         if (!dragClone) return;
         e.preventDefault(); // Prevent scrolling while dragging
         const touch = e.touches[0];
+        const rect = sourceBlock.getBoundingClientRect(); // Using source dimensions for consistency
+        const moveOffset = 80;
 
-        dragClone.style.left = `${touch.clientX - dragOffsetX}px`;
-        dragClone.style.top = `${touch.clientY - dragOffsetY}px`;
+        dragClone.style.left = `${touch.clientX - (rect.width / 2)}px`;
+        dragClone.style.top = `${touch.clientY - (rect.height / 2) - moveOffset}px`;
     }, { passive: false });
 
     document.addEventListener('touchend', (e) => {
