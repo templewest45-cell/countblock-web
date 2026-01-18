@@ -103,7 +103,8 @@ main {
     display: flex;
     gap: 1.5rem;
     align-items: flex-end;
-    margin: auto;
+    align-items: flex-end;
+    /* margin: auto; Removed to allow correct centering via flex parent */
     /* Centers content when it fits, allows scroll when it doesn't */
     padding-bottom: 20px;
     /* Space for scrollbar */
