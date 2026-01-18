@@ -257,19 +257,40 @@ function setupEventListeners() {
     // "Hand" area to board area.
 
     // Board Delegation
+    // Clear highlights helper
+    const clearHighlights = () => {
+        document.querySelectorAll('.slot.hovered').forEach(el => el.classList.remove('hovered'));
+    };
+
     boardEl.addEventListener('dragover', (e) => {
         e.preventDefault(); // Allow dropping
         e.dataTransfer.dropEffect = 'copy';
+
+        const target = e.target;
+        const slot = target.closest('.slot');
+
+        clearHighlights();
+        if (slot && slot.children.length === 0) {
+            slot.classList.add('hovered');
+        }
+    });
+
+    boardEl.addEventListener('dragleave', (e) => {
+        const slot = e.target.closest('.slot');
+        if (slot) {
+            slot.classList.remove('hovered');
+        }
     });
 
     boardEl.addEventListener('drop', (e) => {
         e.preventDefault();
+        clearHighlights();
+
         const type = e.dataTransfer.getData('text/plain');
         if (type !== 'new-block') return;
 
         // Find the closest slot
         const target = e.target;
-        // Target must be a slot or inside a slot
         const slot = target.closest('.slot');
 
         if (slot) {
@@ -318,10 +339,21 @@ function setupEventListeners() {
 
         dragClone.style.left = `${touch.clientX - xOffset}px`;
         dragClone.style.top = `${touch.clientY - yOffset}px`;
+
+        // Highlight logic for touch
+        clearHighlights();
+        const target = document.elementFromPoint(touch.clientX, touch.clientY);
+        if (target) {
+            const slot = target.closest('.slot');
+            if (slot && slot.children.length === 0) {
+                slot.classList.add('hovered');
+            }
+        }
     }, { passive: false });
 
     document.addEventListener('touchend', (e) => {
         if (!dragClone) return;
+        clearHighlights();
 
         const touch = e.changedTouches[0];
         dragClone.remove();
