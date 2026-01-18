@@ -117,22 +117,24 @@ function adjustBoardScale() {
 
     // Reset scale to measure true size
     board.style.transform = 'scale(1)';
-    // Force layout update if needed, but usually waiting for next frame is better.
-    // However, since we are inside a function, let's grab dimensions now.
 
+    // Force reflow to get accurate dimensions
     const containerWidth = container.clientWidth;
     const containerHeight = container.clientHeight;
 
     // Get actual content dimensions
-    // We add some padding/margin allowance
     const boardWidth = board.scrollWidth;
     const boardHeight = board.scrollHeight;
 
-    const paddingX = 40; // 2rem + extra
-    const paddingY = 40;
+    // Safety check for unsized board (e.g., hidden or detached)
+    if (boardWidth === 0 || boardHeight === 0) return;
 
-    const availableWidth = containerWidth - paddingX;
-    const availableHeight = containerHeight - paddingY;
+    const paddingX = 20; // Reduced padding
+    const paddingY = 20;
+
+    // Ensure available space is at least something positive
+    const availableWidth = Math.max(10, containerWidth - paddingX);
+    const availableHeight = Math.max(10, containerHeight - paddingY);
 
     // Calculate scale required to fit
     let scaleX = availableWidth / boardWidth;
@@ -141,12 +143,8 @@ function adjustBoardScale() {
     // Use the smaller scale to ensure it fits in both dimensions
     let scale = Math.min(scaleX, scaleY);
 
-    // Don't scale up if it fits (optional, but usually looks better not to become huge)
-    // But user wants "max visibility", so maybe scaling up is okay? 
-    // Let's limit max scale to 1.0 to avoid pixelation, 
-    // BUT if the screen is huge and blocks are small, maybe they want it big?
-    // Let's stick to max 1.0 for now to keep quality.
-    if (scale > 1) scale = 1;
+    // Safety clamp (0.01 to 1.0)
+    scale = Math.max(0.01, Math.min(scale, 1.0));
 
     // Apply scale
     board.style.transform = `scale(${scale})`;
