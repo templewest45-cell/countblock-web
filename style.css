@@ -111,6 +111,11 @@ main {
     /* Scale from bottom center */
     transition: transform 0.3s ease-out;
     /* Smooth scaling */
+    flex-wrap: nowrap;
+    width: max-content;
+    /* Ensure it takes full width for measurement */
+    max-width: none;
+    /* Allow exceeding container */
 }
 
 .column {
