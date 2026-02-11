@@ -37,9 +37,23 @@ const trayOrderInputs = document.getElementsByName('tray-order'); // New
 
 function initAudio() {
     if (!audioCtx) {
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (AudioContext) {
+            audioCtx = new AudioContext();
+        }
     }
 }
+
+// Resume AudioContext on user interaction for Mobile/iPad
+const resumeAudio = () => {
+    if (!audioCtx) initAudio();
+    if (audioCtx && audioCtx.state === 'suspended') {
+        audioCtx.resume();
+    }
+};
+
+document.addEventListener('touchstart', resumeAudio, { once: true });
+document.addEventListener('click', resumeAudio, { once: true });
 
 function playSnapSound() {
     if (!audioCtx) initAudio();
@@ -532,6 +546,10 @@ function handleTouchStart(e) {
     const sourceBlock = e.target.closest('.source-block');
     if (!sourceBlock) return;
 
+    // Init audio on first touch
+    if (!audioCtx) initAudio();
+    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+
     dragSize = parseInt(sourceBlock.dataset.size || 1);
 
     const touch = e.touches[0];
@@ -540,13 +558,17 @@ function handleTouchStart(e) {
     // Create clone
     dragClone = sourceBlock.cloneNode(true);
     dragClone.style.position = 'fixed';
-    dragClone.style.zIndex = '9999'; // Max z-index
-    dragClone.style.pointerEvents = 'none'; // Necessary to detect element below
+    dragClone.style.zIndex = '9999';
+    dragClone.style.pointerEvents = 'none';
     dragClone.style.opacity = '0.9';
     dragClone.style.transform = 'scale(1.1)';
-    dragClone.classList.remove('source-block');
+    dragClone.style.willChange = 'transform, left, top'; // Force GPU layer on iPad
     dragClone.style.width = `${rect.width}px`;
     dragClone.style.height = `${rect.height}px`;
+    // Ensure background color is visible (in case CSS class is lost)
+    dragClone.style.backgroundColor = state.blockColor;
+    dragClone.style.borderRadius = state.blockShape === 'circle' ? `${state.blockSize / 2}px` : '4px';
+    dragClone.style.boxShadow = '2px 4px 10px rgba(0,0,0,0.4)';
 
     // Offset to show above finger
     const xOffset = rect.width / 2;
