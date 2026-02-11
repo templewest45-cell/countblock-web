@@ -337,10 +337,7 @@ main {
     border-radius: 50%;
 }
 
-/* If square, maybe no gap? */
-.block.connected:not(.circle) .sub-block {
-    /* No margin */
-}
+
 
 .block:active {
     cursor: grabbing;
@@ -463,15 +460,22 @@ main {
     max-width: 400px;
     position: relative;
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+    max-height: 85vh;
+    overflow-y: auto;
 }
 
 .close {
-    position: absolute;
-    top: 10px;
-    right: 15px;
+    position: sticky;
+    top: 0;
+    float: right;
     font-size: 1.5rem;
     cursor: pointer;
     color: #aaa;
+    z-index: 10;
+    background: white;
+    /* Hide content scrolling behind */
+    padding: 0 5px;
+    border-radius: 5px;
 }
 
 .close:hover {
