@@ -1,7 +1,7 @@
 const state = {
     columns: 5, // Default 5 columns
     blockColor: '#3b82f6',
-    blockSize: 50,
+    blockSize: 30,
     blockShape: 'square', // square, circle
     blockType: 'single', // single, connected
     showSeparator: true, // show 'border' between slots vertically
@@ -413,9 +413,6 @@ function setupEventListeners() {
             if (val === 10) {
                 state.blockSize = 30; // Smaller size for 10 columns
                 sizeInput.value = 30;
-            } else {
-                state.blockSize = 50; // Restore default
-                sizeInput.value = 50;
             }
             updateStyles();
 
