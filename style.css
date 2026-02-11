@@ -103,7 +103,6 @@ main {
     display: flex;
     gap: 1.5rem;
     align-items: flex-end;
-    align-items: flex-end;
     /* margin: auto; Removed to allow correct centering via flex parent */
     /* Centers content when it fits, allows scroll when it doesn't */
     padding-bottom: 20px;
@@ -179,18 +178,8 @@ main {
 
 /* Column Boundary Lines */
 .board.show-col-boundary .col-wrapper:not(:last-child) {
-    /* Draw line on the right */
-    border-right: 2px dashed rgba(60, 40, 20, 0.4);
-    /* Adjust margin/padding if needed to prevent layout shift */
-    padding-right: 18px;
-    margin-right: 18px;
-    /* Previously gap was 20px in .board. 
-       .board has gap: 20px. 
-       If we add padding/margin here, we might disrupt the gap. 
-       Better to use a pseudo-element placed in the middle of the gap.
-    */
-    border-right: none;
-    /* Reset and use pseudo */
+    /* No direct border, using pseudo-element */
+    position: relative;
 }
 
 /* Use pseudo-element for boundary line to avoid layout shifts */
@@ -407,7 +396,6 @@ main {
 }
 
 /* Connected Source Block in Tray */
-/* Connected Source Block in Tray */
 .source-block.connected {
     height: auto;
     background-color: var(--block-color);
@@ -510,7 +498,6 @@ main {
     width: 100px;
     height: 40px;
     border: none;
-    cursor: pointer;
     cursor: pointer;
 }
 
