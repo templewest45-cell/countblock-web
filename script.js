@@ -570,9 +570,9 @@ function handleTouchStart(e) {
     dragClone.style.borderRadius = state.blockShape === 'circle' ? `${state.blockSize / 2}px` : '4px';
     dragClone.style.boxShadow = '2px 4px 10px rgba(0,0,0,0.4)';
 
-    // Offset to show above finger
+    // Center block on finger position
     const xOffset = rect.width / 2;
-    const yOffset = rect.height * 1.5;
+    const yOffset = rect.height / 2;
 
     dragClone.style.left = `${touch.clientX - xOffset}px`;
     dragClone.style.top = `${touch.clientY - yOffset}px`;
@@ -590,10 +590,10 @@ document.addEventListener('touchmove', (e) => {
     e.preventDefault(); // Prevent scrolling
     const touch = e.touches[0];
 
-    // Match initial offset logic
+    // Center block on finger position
     const rect = dragClone.getBoundingClientRect();
     const xOffset = rect.width / 2;
-    const yOffset = rect.height * 1.5;
+    const yOffset = rect.height / 2;
 
     dragClone.style.left = `${touch.clientX - xOffset}px`;
     dragClone.style.top = `${touch.clientY - yOffset}px`;
