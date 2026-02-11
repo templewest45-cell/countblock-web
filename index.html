@@ -61,6 +61,54 @@
                 <label for="block-size">ブロックの大きさ:</label>
                 <input type="range" id="block-size" min="30" max="80" value="50">
             </div>
+
+            <div class="setting-group">
+                <label>ブロックの形:</label>
+                <div class="radio-group">
+                    <label><input type="radio" name="block-shape" value="square" checked> 四角</label>
+                    <label><input type="radio" name="block-shape" value="circle"> 丸</label>
+                </div>
+            </div>
+
+            <div class="setting-group">
+                <label>ブロックの種類:</label>
+                <div class="radio-group">
+                    <label><input type="radio" name="block-type" value="single" checked> バラバラ</label>
+                    <label><input type="radio" name="block-type" value="connected"> つながっている</label>
+                </div>
+            </div>
+
+            <div class="setting-group">
+                <label>マスの区切り線(横):</label>
+                <div class="radio-group">
+                    <label><input type="radio" name="slot-separator" value="show" checked> あり</label>
+                    <label><input type="radio" name="slot-separator" value="hide"> なし</label>
+                </div>
+            </div>
+
+            <div class="setting-group">
+                <label>列の境界線(縦):</label>
+                <div class="radio-group">
+                    <label><input type="radio" name="col-boundary" value="show"> あり</label>
+                    <label><input type="radio" name="col-boundary" value="hide" checked> なし</label>
+                </div>
+            </div>
+
+            <div class="setting-group">
+                <label>最大数 (段数):</label>
+                <div class="radio-group">
+                    <label><input type="radio" name="max-columns" value="5" checked> 5</label>
+                    <label><input type="radio" name="max-columns" value="10"> 10</label>
+                </div>
+            </div>
+
+            <div class="setting-group">
+                <label>手元の並び:</label>
+                <div class="radio-group">
+                    <label><input type="radio" name="tray-order" value="ordered" checked> 順番</label>
+                    <label><input type="radio" name="tray-order" value="random"> ランダム</label>
+                </div>
+            </div>
         </div>
     </div>
 

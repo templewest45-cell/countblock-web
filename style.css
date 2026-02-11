@@ -131,12 +131,17 @@ main {
 .slot {
     width: var(--block-size);
     height: var(--block-size);
-    border-radius: 50%;
+    border-radius: 4px;
+    /* Square by default */
     background-color: rgba(60, 40, 20, 0.2);
     box-shadow: var(--slot-depth);
     position: relative;
     /* For placing blocks inside */
-    transition: width 0.3s, height 0.3s, background-color 0.2s;
+    transition: width 0.3s, height 0.3s, background-color 0.2s, border-radius 0.2s;
+}
+
+.board.shape-circle .slot {
+    border-radius: 50%;
 }
 
 .slot.hovered {
@@ -168,6 +173,40 @@ main {
     align-items: center;
     flex-shrink: 0;
     /* Prevent squashing when many columns */
+    position: relative;
+    /* For pseudo-elements if needed */
+}
+
+/* Column Boundary Lines */
+.board.show-col-boundary .col-wrapper:not(:last-child) {
+    /* Draw line on the right */
+    border-right: 2px dashed rgba(60, 40, 20, 0.4);
+    /* Adjust margin/padding if needed to prevent layout shift */
+    padding-right: 18px;
+    margin-right: 18px;
+    /* Previously gap was 20px in .board. 
+       .board has gap: 20px. 
+       If we add padding/margin here, we might disrupt the gap. 
+       Better to use a pseudo-element placed in the middle of the gap.
+    */
+    border-right: none;
+    /* Reset and use pseudo */
+}
+
+/* Use pseudo-element for boundary line to avoid layout shifts */
+.board.show-col-boundary .col-wrapper:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    right: -11px;
+    /* Half of board gap (20px) approx */
+    top: -10px;
+    /* Start slightly above the highest block */
+    bottom: 0;
+    width: 3px;
+    background-color: transparent;
+    border-right: 3px dashed rgba(60, 40, 20, 0.6);
+    height: auto;
+    /* Span full height */
 }
 
 .slots-container {
@@ -176,7 +215,52 @@ main {
     /* 1 at bottom, N at top */
     gap: 8px;
     padding-bottom: 10px;
+    transition: background-color 0.3s, box-shadow 0.3s, border-radius 0.3s;
 }
+
+/* Connected Type Styles */
+/* Merged Look: Container acts as the hole */
+.board.use-merged-look .slots-container {
+    background-color: rgba(60, 40, 20, 0.2);
+    box-shadow: var(--slot-depth);
+    width: var(--block-size);
+    /* Ensure width is set */
+    padding: 0;
+    /* No padding inside the hole */
+    padding-bottom: 0;
+    /* Remove padding */
+    border-radius: 4px;
+    /* Default square */
+}
+
+/* Rounded merged look */
+.board.use-merged-look.shape-circle .slots-container {
+    border-radius: calc(var(--block-size) / 2);
+}
+
+/* In Merged Look, individual slots are initially transparent */
+.board.use-merged-look .slot {
+    background-color: transparent !important;
+    box-shadow: none !important;
+    border: none !important;
+    border-radius: 0;
+}
+
+/* If Inner Lines are Requested in Merged Look */
+.board.show-inner-lines .slot {
+    /* Add a subtle separator line */
+    border-bottom: 1px dashed rgba(60, 40, 20, 0.3) !important;
+    /* Reset other props just in case */
+    background-color: transparent !important;
+    box-shadow: none !important;
+}
+
+/* Ensure the last slot (top visually) doesn't have a border if we want pure internal dividers? 
+   Actually flexible col-reverse means first child is bottom. 
+   We usually want lines BETWEEN slots. 
+   So every slot except maybe the top one?
+   But simpler is fine. 
+*/
 
 .number-tile {
     width: calc(var(--block-size) * 1.2);
@@ -199,13 +283,74 @@ main {
     width: var(--block-size);
     height: var(--block-size);
     background-color: var(--block-color);
-    border-radius: 50%;
+    border-radius: 4px;
+    /* Square by default */
     box-shadow: var(--block-shadow);
     cursor: grab;
     position: relative;
     /* relative to slot */
     z-index: 2;
     transition: transform 0.1s;
+    display: flex;
+    /* For sub-blocks centering if needed */
+    flex-direction: column;
+}
+
+/* Shape modifiers */
+.block.circle,
+.draggable-block.circle {
+    border-radius: 50%;
+}
+
+/* Note: .sub-block.circle is removed because sub-blocks are now invisible structure */
+
+.block.connected {
+    height: auto;
+    /* Allow variable height */
+    background-color: var(--block-color);
+    /* Container has the color now */
+    box-shadow: var(--block-shadow);
+    /* Container has the shadow */
+    display: flex;
+    flex-direction: column-reverse;
+    /* Bottom up logic matches slots */
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    /* height is set inline via calc */
+    gap: 0;
+    /* No gap between sub-blocks to look continuous */
+    z-index: 2;
+    /* Default Square Radius */
+    border-radius: 4px;
+}
+
+/* Capsule for connected circles */
+.block.connected.circle {
+    border-radius: calc(var(--block-size) / 2);
+}
+
+.sub-block {
+    width: var(--block-size);
+    height: var(--block-size);
+    /* Invisible structure */
+    background-color: transparent;
+    box-shadow: none;
+    border-radius: 0;
+    /* Borders for debugging if needed */
+    /* border: 1px solid rgba(255,255,255,0.2); */
+    flex-shrink: 0;
+}
+
+/* Specific adjustment for connected circles to look good */
+.block.connected.circle .sub-block {
+    border-radius: 50%;
+}
+
+/* If square, maybe no gap? */
+.block.connected:not(.circle) .sub-block {
+    /* No margin */
 }
 
 .block:active {
@@ -236,22 +381,65 @@ main {
 .tray {
     display: flex;
     justify-content: center;
+    align-items: flex-end;
+    /* Align bottom so varying heights look like stairs if wrapped? Or center? */
+    /* Center usually better for generic usage, but for stairs effect bottom might be nice. 
+       However, wrapping breaks the stairs effect visually. Center is safer. */
     align-items: center;
+    flex-wrap: wrap;
+    /* Allow wrapping for many items */
+    gap: 15px;
     min-height: calc(var(--block-size) + 20px);
     width: 100%;
 }
 
+/* The infinite source block */
 .source-block {
-    /* The infinite source block */
     width: var(--block-size);
     height: var(--block-size);
     background-color: var(--block-color);
-    border-radius: 50%;
+    border-radius: 4px;
     box-shadow: var(--block-shadow);
     cursor: grab;
     transition: transform 0.2s;
     touch-action: none;
     /* Prevent scrolling on touch */
+}
+
+/* Connected Source Block in Tray */
+/* Connected Source Block in Tray */
+.source-block.connected {
+    height: auto;
+    background-color: var(--block-color);
+    box-shadow: var(--block-shadow);
+    display: flex;
+    flex-direction: column;
+    /* Top down in tray */
+    gap: 0;
+    border-radius: 4px;
+    /* Default square */
+}
+
+/* Capsule in Tray */
+.source-block.connected.circle {
+    border-radius: calc(var(--block-size) / 2);
+}
+
+.connected-block-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 0 10px;
+    height: 100%;
+    justify-content: flex-end;
+    padding-bottom: 5px;
+}
+
+.connected-block-container span {
+    margin-top: 5px;
+    font-size: 0.8rem;
+    color: #666;
+    font-weight: bold;
 }
 
 .source-block:hover {
@@ -322,6 +510,20 @@ main {
     width: 100px;
     height: 40px;
     border: none;
+    cursor: pointer;
+    cursor: pointer;
+}
+
+.radio-group {
+    display: flex;
+    gap: 15px;
+}
+
+.radio-group label {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-weight: normal;
     cursor: pointer;
 }
 

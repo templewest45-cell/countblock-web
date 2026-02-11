@@ -2,9 +2,15 @@ const state = {
     columns: 5, // Default 5 columns
     blockColor: '#3b82f6',
     blockSize: 50,
+    blockShape: 'square', // square, circle
+    blockType: 'single', // single, connected
+    showSeparator: true, // show 'border' between slots vertically
+    showColBoundary: false, // show lines between columns
+    trayRandom: false, // randomize tray order
     filled: {}, // Map "col-index" -> count of filled blocks
     allComplete: false
 };
+
 
 // DOM Elements
 const boardEl = document.getElementById('board');
@@ -22,6 +28,12 @@ const root = document.documentElement;
 
 // Audio Context
 let audioCtx = null;
+const shapeInputs = document.getElementsByName('block-shape'); // NodeList
+const typeInputs = document.getElementsByName('block-type'); // NodeList
+const sepInputs = document.getElementsByName('slot-separator'); // New
+const colInputs = document.getElementsByName('col-boundary'); // New
+const maxColInputs = document.getElementsByName('max-columns'); // New
+const trayOrderInputs = document.getElementsByName('tray-order'); // New
 
 function initAudio() {
     if (!audioCtx) {
@@ -101,6 +113,7 @@ function playFanfareSound(type) {
 // Initialization
 function init() {
     renderBoard();
+    renderTray(); // New function call
     setupEventListeners();
     updateStyles();
 
@@ -150,9 +163,112 @@ function adjustBoardScale() {
     board.style.transform = `scale(${scale})`;
 }
 
+// Update Styles
 function updateStyles() {
     root.style.setProperty('--block-color', state.blockColor);
     root.style.setProperty('--block-size', `${state.blockSize}px`);
+
+    // Update board class for slot shapes
+    if (state.blockShape === 'circle') {
+        boardEl.classList.add('shape-circle');
+    } else {
+        boardEl.classList.remove('shape-circle');
+    }
+
+
+
+    // Determine visual mode
+    // Merged Look (Continuous background): if Connected OR Separator is Hidden
+    const useMergedLook = (state.blockType === 'connected' || !state.showSeparator);
+
+    if (useMergedLook) {
+        boardEl.classList.add('use-merged-look');
+    } else {
+        boardEl.classList.remove('use-merged-look');
+    }
+
+    // Show Inner Lines (Dividers): if Separator is Shown AND Merged Look is active
+    // (If not Merged Look, standard slots have borders/gaps naturally)
+    // Show Inner Lines (Dividers): if Separator is Shown AND Merged Look is active
+    // (If not Merged Look, standard slots have borders/gaps naturally)
+    if (state.showSeparator && useMergedLook) {
+        boardEl.classList.add('show-inner-lines');
+    } else {
+        boardEl.classList.remove('show-inner-lines');
+    }
+
+    // Show lines between columns
+    if (state.showColBoundary) {
+        boardEl.classList.add('show-col-boundary');
+    } else {
+        boardEl.classList.remove('show-col-boundary');
+    }
+
+    // Update block shapes
+    const blocks = document.querySelectorAll('.block, .draggable-block');
+    blocks.forEach(b => {
+        if (state.blockShape === 'circle') b.classList.add('circle');
+        else b.classList.remove('circle');
+    });
+
+    // Update connected logic in tray? redrawn by renderTray
+}
+
+function renderTray() {
+    trayEl.innerHTML = '';
+
+    if (state.blockType === 'single') {
+        const block = document.createElement('div');
+        block.className = 'draggable-block source-block';
+        if (state.blockShape === 'circle') block.classList.add('circle');
+        block.draggable = true;
+        block.dataset.size = 1;
+        trayEl.appendChild(block);
+    } else {
+        // Connected: Show blocks of size 1 to N (columns)
+        let sizes = [];
+        for (let i = 1; i <= state.columns; i++) sizes.push(i);
+
+        if (state.trayRandom) {
+            // Shuffle
+            for (let i = sizes.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [sizes[i], sizes[j]] = [sizes[j], sizes[i]];
+            }
+        }
+
+        sizes.forEach(i => {
+            const container = document.createElement('div');
+            container.className = 'connected-block-container';
+
+            // Create a compound block
+            const block = document.createElement('div');
+            block.className = 'draggable-block source-block connected';
+            if (state.blockShape === 'circle') block.classList.add('circle');
+            block.draggable = true;
+            block.dataset.size = i;
+
+            // Visual height
+            const gap = 8;
+            block.style.height = `calc(var(--block-size) * ${i} + ${gap}px * ${i - 1})`;
+
+            // Internal structure for consistency (invisible but structural)
+            for (let k = 0; k < i; k++) {
+                const sub = document.createElement('div');
+                sub.className = 'sub-block';
+                block.appendChild(sub);
+            }
+
+            container.appendChild(block);
+
+            // Label
+            const label = document.createElement('span');
+            label.textContent = i;
+            container.appendChild(label);
+
+            trayEl.appendChild(container);
+        });
+    }
 }
 
 function renderBoard() {
@@ -205,6 +321,16 @@ function renderBoard() {
     }
 }
 
+// Re-attach listeners for new source blocks
+function setupTrayListeners() {
+    const sourceBlocks = document.querySelectorAll('.source-block');
+    sourceBlocks.forEach(b => {
+        b.addEventListener('dragstart', handleDragStart);
+        // Touch events need to be re-attached too
+        b.addEventListener('touchstart', handleTouchStart, { passive: false });
+    });
+}
+
 function setupEventListeners() {
     // Reset
     resetBtn.addEventListener('click', resetGame);
@@ -242,19 +368,78 @@ function setupEventListeners() {
         adjustBoardScale();
     });
 
-    // Drag and Drop Logic
-    // Source Block
-    const sourceBlock = document.querySelector('.source-block');
-    sourceBlock.addEventListener('dragstart', (e) => {
-        e.dataTransfer.setData('text/plain', 'new-block');
-        e.dataTransfer.effectAllowed = 'copy';
+    shapeInputs.forEach(input => {
+        input.addEventListener('change', (e) => {
+            state.blockShape = e.target.value;
+            updateStyles();
+            renderTray();
+            setupTrayListeners(); // Re-bind
+            resetGame();
+        });
     });
 
-    // For touch devices, we might need extra handling, 
-    // but using standard HTML5 drag/drop for now as requested for "web app".
-    // "Hand" area to board area.
+    typeInputs.forEach(input => {
+        input.addEventListener('change', (e) => {
+            state.blockType = e.target.value;
+            updateStyles(); // Update board class
+            renderTray();
+            setupTrayListeners(); // Re-bind
+            resetGame();
+        });
+    });
+
+    sepInputs.forEach(input => {
+        input.addEventListener('change', (e) => {
+            state.showSeparator = (e.target.value === 'show');
+            updateStyles();
+            resetGame();
+        });
+    });
+
+    colInputs.forEach(input => {
+        input.addEventListener('change', (e) => {
+            state.showColBoundary = (e.target.value === 'show');
+            updateStyles();
+            resetGame();
+        });
+    });
+
+    maxColInputs.forEach(input => {
+        input.addEventListener('change', (e) => {
+            const val = parseInt(e.target.value);
+            state.columns = val;
+
+            // Auto-resize for mobile usability
+            if (val === 10) {
+                state.blockSize = 30; // Smaller size for 10 columns
+                sizeInput.value = 30;
+            } else {
+                state.blockSize = 50; // Restore default
+                sizeInput.value = 50;
+            }
+            updateStyles();
+
+            // Re-render everything
+            renderTray();
+            resetGame();
+            adjustBoardScale();
+        });
+    });
+
+    trayOrderInputs.forEach(input => {
+        input.addEventListener('change', (e) => {
+            state.trayRandom = (e.target.value === 'random');
+            renderTray();
+            setupTrayListeners();
+            // No reset game needed, just reshuffle tray
+        });
+    });
+
+    // Initial Tray Listeners
+    setupTrayListeners();
 
     // Board Delegation
+
     // Clear highlights helper
     const clearHighlights = () => {
         document.querySelectorAll('.slot.hovered').forEach(el => el.classList.remove('hovered'));
@@ -268,8 +453,26 @@ function setupEventListeners() {
         const slot = target.closest('.slot');
 
         clearHighlights();
-        if (slot && slot.children.length === 0) {
-            slot.classList.add('hovered');
+
+        // Retrieve size
+        let size = parseInt(dragSize || 1); // Use global or assume 1
+
+        if (state.blockType === 'connected') {
+            // Gravity Logic: Target is the lowest empty slot in the column
+            // Highlight ALL slots that would be filled.
+            if (slot) {
+                const colIndex = parseInt(slot.dataset.col);
+                const targetSlots = getGravityTargetSlots(colIndex, size);
+
+                if (targetSlots) {
+                    targetSlots.forEach(s => s.classList.add('hovered'));
+                }
+            }
+        } else {
+            // Standard exact logic
+            if (slot && slot.children.length === 0) {
+                slot.classList.add('hovered');
+            }
         }
     });
 
@@ -291,108 +494,294 @@ function setupEventListeners() {
         const target = e.target;
         const slot = target.closest('.slot');
 
+        // Retrieve size
+        const size = parseInt(e.dataTransfer.getData('application/x-block-size') || 1);
+
         if (slot) {
-            addBlockToSlot(slot);
+            if (state.blockType === 'connected') {
+                // Gravity Drop
+                const colIndex = parseInt(slot.dataset.col);
+                const targetSlots = getGravityTargetSlots(colIndex, size);
+                if (targetSlots) {
+                    // Use the lowest slot as the anchor for addBlockToSlot
+                    // targetSlots[0] should be the bottom-most one (lowest row index)
+                    // But our array from getGravityTargetSlots is sorted by row index ascending?
+                    // Let's check getGravityTargetSlots implementation below.
+                    addBlockToSlot(targetSlots[0], size, true); // true = avoid re-check
+                }
+            } else {
+                addBlockToSlot(slot, size);
+            }
         }
     });
 
     // Touch support for mobile devices
-    let dragClone = null;
 
-    sourceBlock.addEventListener('touchstart', (e) => {
-        e.preventDefault(); // Prevent scrolling
-        const touch = e.touches[0];
-        const rect = sourceBlock.getBoundingClientRect();
+    // Moved to handleTouchStart/Move/End functions for reusability
+}
 
-        // Create clone
-        dragClone = sourceBlock.cloneNode(true);
-        dragClone.style.position = 'fixed';
-        dragClone.style.zIndex = '9999'; // Max z-index
-        dragClone.style.pointerEvents = 'none'; // Necessary to detect element below
-        dragClone.style.opacity = '0.9';
-        dragClone.style.transform = 'scale(1.1)';
-        dragClone.classList.remove('source-block');
-        dragClone.style.width = `${rect.width}px`;
-        dragClone.style.height = `${rect.height}px`;
+let dragClone = null;
+let dragSize = 1;
 
-        // Offset to show above finger
-        const xOffset = rect.width / 2;
-        const yOffset = rect.height * 1.5;
+function handleDragStart(e) {
+    e.dataTransfer.setData('text/plain', 'new-block');
+    e.dataTransfer.setData('application/x-block-size', e.target.dataset.size || 1);
+    e.dataTransfer.effectAllowed = 'copy';
+    dragSize = parseInt(e.target.dataset.size || 1);
+}
 
-        dragClone.style.left = `${touch.clientX - xOffset}px`;
-        dragClone.style.top = `${touch.clientY - yOffset}px`;
+function handleTouchStart(e) {
+    e.preventDefault(); // Prevent scrolling
+    const sourceBlock = e.target.closest('.source-block');
+    if (!sourceBlock) return;
 
-        document.body.appendChild(dragClone);
-    }, { passive: false });
+    dragSize = parseInt(sourceBlock.dataset.size || 1);
 
-    document.addEventListener('touchmove', (e) => {
-        if (!dragClone) return;
-        e.preventDefault(); // Prevent scrolling
-        const touch = e.touches[0];
+    const touch = e.touches[0];
+    const rect = sourceBlock.getBoundingClientRect();
 
-        // Match initial offset logic
-        const rect = dragClone.getBoundingClientRect();
-        const xOffset = rect.width / 2;
-        const yOffset = rect.height * 1.5;
+    // Create clone
+    dragClone = sourceBlock.cloneNode(true);
+    dragClone.style.position = 'fixed';
+    dragClone.style.zIndex = '9999'; // Max z-index
+    dragClone.style.pointerEvents = 'none'; // Necessary to detect element below
+    dragClone.style.opacity = '0.9';
+    dragClone.style.transform = 'scale(1.1)';
+    dragClone.classList.remove('source-block');
+    dragClone.style.width = `${rect.width}px`;
+    dragClone.style.height = `${rect.height}px`;
 
-        dragClone.style.left = `${touch.clientX - xOffset}px`;
-        dragClone.style.top = `${touch.clientY - yOffset}px`;
+    // Offset to show above finger
+    const xOffset = rect.width / 2;
+    const yOffset = rect.height * 1.5;
 
-        // Highlight logic for touch
-        clearHighlights();
-        const target = document.elementFromPoint(touch.clientX, touch.clientY);
-        if (target) {
-            const slot = target.closest('.slot');
-            if (slot && slot.children.length === 0) {
+    dragClone.style.left = `${touch.clientX - xOffset}px`;
+    dragClone.style.top = `${touch.clientY - yOffset}px`;
+
+    document.body.appendChild(dragClone);
+}
+
+// Add these to document event listeners in setupEventListeners or init, 
+// but since they are document level, we can just leave them in setupEventListeners 
+// OR refactor because we removed them from the big function.
+// Let's add them back to document level.
+
+document.addEventListener('touchmove', (e) => {
+    if (!dragClone) return;
+    e.preventDefault(); // Prevent scrolling
+    const touch = e.touches[0];
+
+    // Match initial offset logic
+    const rect = dragClone.getBoundingClientRect();
+    const xOffset = rect.width / 2;
+    const yOffset = rect.height * 1.5;
+
+    dragClone.style.left = `${touch.clientX - xOffset}px`;
+    dragClone.style.top = `${touch.clientY - yOffset}px`;
+
+    // Highlight logic for touch
+    clearHighlights();
+    const target = document.elementFromPoint(touch.clientX, touch.clientY);
+    if (target) {
+        const slot = target.closest('.slot');
+        if (slot) {
+            if (state.blockType === 'connected') {
+                const colIndex = parseInt(slot.dataset.col);
+                const targetSlots = getGravityTargetSlots(colIndex, dragSize);
+                if (targetSlots) {
+                    targetSlots.forEach(s => s.classList.add('hovered'));
+                }
+            } else if (slot.children.length === 0) {
                 slot.classList.add('hovered');
             }
         }
-    }, { passive: false });
+    }
+}, { passive: false });
 
-    document.addEventListener('touchend', (e) => {
-        if (!dragClone) return;
-        clearHighlights();
+document.addEventListener('touchend', (e) => {
+    if (!dragClone) return;
+    // clearHighlights(); // Keep highlight for a moment? No.
 
-        const touch = e.changedTouches[0];
-        dragClone.remove();
-        dragClone = null;
+    const touch = e.changedTouches[0];
+    dragClone.remove();
+    dragClone = null;
 
-        // Check drop target at the finger position
-        const target = document.elementFromPoint(touch.clientX, touch.clientY);
+    // Check drop target at the finger position
+    const target = document.elementFromPoint(touch.clientX, touch.clientY);
 
-        if (target) {
-            const slot = target.closest('.slot');
-            if (slot) {
-                addBlockToSlot(slot);
+    if (target) {
+        const slot = target.closest('.slot');
+        if (slot) {
+            if (state.blockType === 'connected') {
+                const colIndex = parseInt(slot.dataset.col);
+                const targetSlots = getGravityTargetSlots(colIndex, dragSize);
+                if (targetSlots) {
+                    addBlockToSlot(targetSlots[0], dragSize, true);
+                }
+            } else {
+                addBlockToSlot(slot, dragSize);
             }
         }
-    });
+    }
+    clearHighlights();
+});
+
+function clearHighlights() {
+    document.querySelectorAll('.slot.hovered').forEach(el => el.classList.remove('hovered'));
 }
+
+/* 
+   We need to remove the old touch listeners from setupEventListeners 
+   because we moved them to global scope or named functions. 
+   The replacement block above covered 'dragstart' logic but left 
+   the old big chunk of touch logic in the 'setupEventListeners' 
+   which we replaced partially. 
+   Wait, I replaced 'dragstart' ... 'addBlockToSlot' call in the previous chunk.
+   The 'Touch support' section was inside setupEventListeners. I must ensure I don't duplicate.
+*/
+
 
 function resetGame() {
     state.filled = {}; // This will be per-column count, derived from slots
     state.allComplete = false;
     victoryOverlay.classList.remove('show');
     trayEl.classList.remove('invisible');
+    document.querySelectorAll('.source-block').forEach(b => b.classList.remove('invisible'));
     renderBoard();
 }
 
-function addBlockToSlot(slotEl) {
+function getGravityTargetSlots(colIndex, size) {
+    const slotsContainer = document.querySelector(`.slots-container[data-col-index="${colIndex}"]`);
+    if (!slotsContainer) return null;
+
+    const slots = Array.from(slotsContainer.querySelectorAll('.slot'));
+    // Sort by row index just in case (0 is bottom)
+    slots.sort((a, b) => parseInt(a.dataset.row) - parseInt(b.dataset.row));
+
+    // Find the first empty slot (lowest index)
+    let firstEmptyIndex = -1;
+    for (let i = 0; i < slots.length; i++) {
+        if (slots[i].children.length === 0) {
+            firstEmptyIndex = i;
+            break;
+        }
+    }
+
+    if (firstEmptyIndex === -1) return null; // Column full
+
+    // Check if we have enough space (size) starting from firstEmptyIndex
+    // We need [firstEmptyIndex, firstEmptyIndex + 1, ..., firstEmptyIndex + size - 1]
+    const targetSlots = [];
+    for (let k = 0; k < size; k++) {
+        const index = firstEmptyIndex + k;
+        if (index >= slots.length) return null; // Not enough space
+        if (slots[index].children.length > 0) return null; // Should not happen if finding first empty, unless gaps?
+
+        targetSlots.push(slots[index]);
+    }
+
+    return targetSlots;
+}
+
+function addBlockToSlot(slotEl, size = 1, skipValidation = false) {
     if (state.allComplete) return;
 
-    // Check if slot is empty
-    if (slotEl.children.length > 0) return; // Already has a block
+    const colIndex = parseInt(slotEl.dataset.col);
+    const rowIndex = parseInt(slotEl.dataset.row);
 
-    // Create block
-    const block = document.createElement('div');
-    block.className = 'block placed';
-    slotEl.appendChild(block);
+    // Validate if we have enough space
+    // We need 'size' contiguous slots starting from 'rowIndex' upwards
+    // Note: Visual slots are usually ordered bottom-up in the DOM? 
+    // Wait, in renderBoard:
+    // for (let j = 0; j < i; j++) { ... slot.dataset.row = j ... appendChild }
+    // So j=0 is first child, j=i-1 is last child.
+    // CSS Flexbox defaults: row (horizontal) or column (vertical).
+    // .slots-container usually has 'flex-direction: column-reverse' to stack bottom up?
+    // Let's check style.css later. Assuming standard order 0..N.
+
+    // We need to check if slots [row, row+1, ..., row+size-1] exist and are empty.
+    const container = slotEl.parentElement;
+    const slots = Array.from(container.children); // All slots in this column
+
+    // Find the slots we need
+    // Find the slots we need
+    const targetSlots = [];
+
+    if (state.blockType === 'single' || !skipValidation) {
+        // Exact position check
+        for (let k = 0; k < size; k++) {
+            const neededRow = rowIndex + k;
+            const found = slots.find(s => parseInt(s.dataset.row) === neededRow);
+
+            if (!found) return;
+            if (found.children.length > 0) return;
+
+            targetSlots.push(found);
+        }
+    } else {
+        // Connected Gravity (Validated by caller, but let's re-fetch safely)
+        // We assume slotEl is the bottom-most valid slot
+        for (let k = 0; k < size; k++) {
+            const neededRow = rowIndex + k;
+            const found = slots.find(s => parseInt(s.dataset.row) === neededRow);
+            if (found) targetSlots.push(found);
+        }
+    }
+
+    // All clear, modify the DOM
+    // For 'Connected', do we spawn one tall block or N small blocks?
+    // The request says "rectangles of different heights corresponding to the number".
+    // So one tall block is better.
+
+    if (state.blockType === 'single') {
+        // Should only be size 1 ideally, but loop just in case
+        targetSlots.forEach(s => {
+            spawnBlockInSlot(s, 1);
+        });
+    } else {
+        // Connected: Spawn one big block in the first slot, 
+        // but it needs to visually cover the others.
+        // CSS Grid or Absolute positioning? 
+        // Simplest: inner div that has height = size * unit + gaps
+
+        const baseSlot = targetSlots[0];
+        spawnBlockInSlot(baseSlot, size);
+
+        // Mark other slots as 'occupied' invisibly? 
+        // If we just put the big block in the first slot, the other slots are technically empty.
+        // So we should probably fill them with 'phantom' blocks or data attribute
+        // to prevent other blocks being dropped there.
+        for (let k = 1; k < size; k++) {
+            const filler = document.createElement('div');
+            filler.className = 'block-spacer'; // Invisible filler
+            filler.style.display = 'none'; // Or just visibility hidden
+            // But if we use 'children.length > 0' check, any child is enough.
+            targetSlots[k].appendChild(filler);
+        }
+
+        // Hide the source block from tray
+        const sourceBlock = trayEl.querySelector(`.draggable-block.source-block[data-size="${size}"]`);
+        if (sourceBlock) {
+            sourceBlock.classList.add('invisible');
+        }
+    }
 
     playSnapSound();
-
-    // Check Column Completion
-    const colIndex = parseInt(slotEl.dataset.col);
     checkColumnComplete(colIndex);
+}
+
+function spawnBlockInSlot(slot, size) {
+    const block = document.createElement('div');
+    block.className = 'block placed'; // Base class
+    if (state.blockShape === 'circle') block.classList.add('circle');
+    if (size > 1) {
+        block.classList.add('connected');
+        // Set explicit height to match the slots + gaps
+        const gap = 8;
+        block.style.height = `calc(var(--block-size) * ${size} + ${gap}px * ${size - 1})`;
+    }
+
+    slot.appendChild(block);
 }
 
 function checkColumnComplete(colIndex) {
