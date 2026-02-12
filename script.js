@@ -3,10 +3,12 @@ const state = {
     blockColor: '#3b82f6',
     blockSize: 30,
     blockShape: 'square', // square, circle
-    blockType: 'single', // single, connected
+    blockType: 'connected', // single, connected
     showSeparator: true, // show 'border' between slots vertically
     showColBoundary: false, // show lines between columns
+    showCeiling: false, // show ceiling at top of each column
     trayRandom: false, // randomize tray order
+    boardRandom: false, // randomize board column order
     filled: {}, // Map "col-index" -> count of filled blocks
     allComplete: false
 };
@@ -32,8 +34,10 @@ const shapeInputs = document.getElementsByName('block-shape'); // NodeList
 const typeInputs = document.getElementsByName('block-type'); // NodeList
 const sepInputs = document.getElementsByName('slot-separator'); // New
 const colInputs = document.getElementsByName('col-boundary'); // New
+const ceilingInputs = document.getElementsByName('ceiling'); // Ceiling
 const maxColInputs = document.getElementsByName('max-columns'); // New
 const trayOrderInputs = document.getElementsByName('tray-order'); // New
+const boardOrderInputs = document.getElementsByName('board-order'); // Board order
 
 function initAudio() {
     if (!audioCtx) {
@@ -218,6 +222,13 @@ function updateStyles() {
         boardEl.classList.remove('show-col-boundary');
     }
 
+    // Show ceiling at top of each column
+    if (state.showCeiling) {
+        boardEl.classList.add('show-ceiling');
+    } else {
+        boardEl.classList.remove('show-ceiling');
+    }
+
     // Update block shapes
     const blocks = document.querySelectorAll('.block, .draggable-block');
     blocks.forEach(b => {
@@ -289,7 +300,19 @@ function renderBoard() {
     boardEl.innerHTML = '';
     state.filled = {};
 
-    for (let i = 1; i <= state.columns; i++) {
+    // Build column indices array
+    let colIndices = [];
+    for (let i = 1; i <= state.columns; i++) colIndices.push(i);
+
+    // Shuffle if random
+    if (state.boardRandom) {
+        for (let i = colIndices.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [colIndices[i], colIndices[j]] = [colIndices[j], colIndices[i]];
+        }
+    }
+
+    colIndices.forEach(i => {
         // Create Column Wrapper
         const colWrapper = document.createElement('div');
         colWrapper.className = 'col-wrapper';
@@ -297,7 +320,6 @@ function renderBoard() {
         // Slots Container
         const slotsContainer = document.createElement('div');
         slotsContainer.className = 'slots-container';
-        // Assign ID for drop target
         slotsContainer.dataset.colIndex = i;
 
         // Create slots (height = i)
@@ -305,7 +327,7 @@ function renderBoard() {
             const slot = document.createElement('div');
             slot.className = 'slot';
             slot.dataset.col = i;
-            slot.dataset.row = j; // 0 is bottom
+            slot.dataset.row = j;
             slotsContainer.appendChild(slot);
         }
 
@@ -321,7 +343,6 @@ function renderBoard() {
         const maru = document.createElement('div');
         maru.className = 'maru-mark';
         maru.id = `maru-${i}`;
-        // Simple red circle SVG
         maru.innerHTML = `
             <svg viewBox="0 0 100 100">
                  <circle cx="50" cy="50" r="40" stroke="red" stroke-width="8" fill="none" />
@@ -329,10 +350,10 @@ function renderBoard() {
         `;
 
         colWrapper.appendChild(slotsContainer);
-        colWrapper.appendChild(maru); // Place overlay
+        colWrapper.appendChild(maru);
         colWrapper.appendChild(numberTile);
         boardEl.appendChild(colWrapper);
-    }
+    });
 }
 
 // Re-attach listeners for new source blocks
@@ -418,6 +439,13 @@ function setupEventListeners() {
         });
     });
 
+    ceilingInputs.forEach(input => {
+        input.addEventListener('change', (e) => {
+            state.showCeiling = (e.target.value === 'show');
+            updateStyles();
+        });
+    });
+
     maxColInputs.forEach(input => {
         input.addEventListener('change', (e) => {
             const val = parseInt(e.target.value);
@@ -442,7 +470,14 @@ function setupEventListeners() {
             state.trayRandom = (e.target.value === 'random');
             renderTray();
             setupTrayListeners();
-            // No reset game needed, just reshuffle tray
+        });
+    });
+
+    boardOrderInputs.forEach(input => {
+        input.addEventListener('change', (e) => {
+            state.boardRandom = (e.target.value === 'random');
+            resetGame();
+            adjustBoardScale();
         });
     });
 
@@ -670,6 +705,9 @@ function resetGame() {
 }
 
 function getGravityTargetSlots(colIndex, size) {
+    // Only allow the correct size block for each column
+    if (size !== colIndex) return null;
+
     const slotsContainer = document.querySelector(`.slots-container[data-col-index="${colIndex}"]`);
     if (!slotsContainer) return null;
 

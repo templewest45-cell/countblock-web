@@ -74,8 +74,8 @@
             <div class="setting-group">
                 <label>ブロックの種類:</label>
                 <div class="radio-group">
-                    <label><input type="radio" name="block-type" value="single" checked> バラバラ</label>
-                    <label><input type="radio" name="block-type" value="connected"> つながっている</label>
+                    <label><input type="radio" name="block-type" value="single"> バラバラ</label>
+                    <label><input type="radio" name="block-type" value="connected" checked> つながっている</label>
                 </div>
             </div>
 
@@ -96,10 +96,26 @@
             </div>
 
             <div class="setting-group">
+                <label>天井(列の上限):</label>
+                <div class="radio-group">
+                    <label><input type="radio" name="ceiling" value="show"> あり</label>
+                    <label><input type="radio" name="ceiling" value="hide" checked> なし</label>
+                </div>
+            </div>
+
+            <div class="setting-group">
                 <label>最大数 (段数):</label>
                 <div class="radio-group">
                     <label><input type="radio" name="max-columns" value="5" checked> 5</label>
                     <label><input type="radio" name="max-columns" value="10"> 10</label>
+                </div>
+            </div>
+
+            <div class="setting-group">
+                <label>列の並び:</label>
+                <div class="radio-group">
+                    <label><input type="radio" name="board-order" value="ordered" checked> 順番</label>
+                    <label><input type="radio" name="board-order" value="random"> ランダム</label>
                 </div>
             </div>
 

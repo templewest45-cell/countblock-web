@@ -191,11 +191,17 @@ main {
     top: -10px;
     /* Start slightly above the highest block */
     bottom: 0;
-    width: 3px;
+    width: 5px;
     background-color: transparent;
-    border-right: 3px dashed rgba(60, 40, 20, 0.6);
+    border-right: 5px dashed rgba(60, 40, 20, 0.7);
     height: auto;
     /* Span full height */
+}
+
+/* Ceiling: top border on each column's slots */
+.board.show-ceiling .slots-container {
+    border-top: 5px solid rgba(60, 40, 20, 0.7);
+    padding-top: 4px;
 }
 
 .slots-container {
