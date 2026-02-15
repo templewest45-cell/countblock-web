@@ -10,6 +10,7 @@ const state = {
     trayRandom: false, // randomize tray order
     boardRandom: false, // randomize board column order
     equalHeight: false, // all columns same height
+    blockDisplay: 'plain', // plain or dots
     filled: {}, // Map "col-index" -> count of filled blocks
     allComplete: false
 };
@@ -40,6 +41,7 @@ const maxColInputs = document.getElementsByName('max-columns'); // New
 const trayOrderInputs = document.getElementsByName('tray-order'); // New
 const boardOrderInputs = document.getElementsByName('board-order'); // Board order
 const equalHeightInputs = document.getElementsByName('equal-height'); // Equal height
+const blockDisplayInputs = document.getElementsByName('block-display'); // Block display mode
 
 function initAudio() {
     if (!audioCtx) {
@@ -279,11 +281,17 @@ function renderTray() {
             const gap = 8;
             block.style.height = `calc(var(--block-size) * ${i} + ${gap}px * ${i - 1})`;
 
-            // Internal structure for consistency (invisible but structural)
+            // Internal structure
             for (let k = 0; k < i; k++) {
-                const sub = document.createElement('div');
-                sub.className = 'sub-block';
-                block.appendChild(sub);
+                if (state.blockDisplay === 'dots') {
+                    const dot = document.createElement('div');
+                    dot.className = 'block-dot';
+                    block.appendChild(dot);
+                } else {
+                    const sub = document.createElement('div');
+                    sub.className = 'sub-block';
+                    block.appendChild(sub);
+                }
             }
 
             container.appendChild(block);
@@ -498,6 +506,14 @@ function setupEventListeners() {
     equalHeightInputs.forEach(input => {
         input.addEventListener('change', (e) => {
             state.equalHeight = (e.target.value === 'equal');
+            resetGame();
+            adjustBoardScale();
+        });
+    });
+
+    blockDisplayInputs.forEach(input => {
+        input.addEventListener('change', (e) => {
+            state.blockDisplay = e.target.value;
             resetGame();
             adjustBoardScale();
         });
@@ -729,6 +745,8 @@ function resetGame() {
     trayEl.classList.remove('invisible');
     document.querySelectorAll('.source-block').forEach(b => b.classList.remove('invisible'));
     renderBoard();
+    renderTray();
+    setupTrayListeners();
 }
 
 function getGravityTargetSlots(colIndex, size) {
@@ -864,6 +882,15 @@ function spawnBlockInSlot(slot, size) {
         block.classList.add('connected');
         const gap = 8;
         block.style.height = `calc(var(--block-size) * ${size} + ${gap}px * ${size - 1})`;
+
+        // Add dots if display mode is 'dots'
+        if (state.blockDisplay === 'dots') {
+            for (let i = 0; i < size; i++) {
+                const dot = document.createElement('div');
+                dot.className = 'block-dot';
+                block.appendChild(dot);
+            }
+        }
     }
 
     // In equalHeight mode, make block interactive for moving

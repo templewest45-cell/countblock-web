@@ -287,24 +287,19 @@ main {
 
 .block.connected {
     height: auto;
-    /* Allow variable height */
     background-color: var(--block-color);
-    /* Container has the color now */
     box-shadow: var(--block-shadow);
-    /* Container has the shadow */
     display: flex;
     flex-direction: column-reverse;
-    /* Bottom up logic matches slots */
+    align-items: center;
+    justify-content: space-evenly;
     position: absolute;
     bottom: 0;
     left: 0;
     width: 100%;
-    /* height is set inline via calc */
-    gap: 0;
-    /* No gap between sub-blocks to look continuous */
     z-index: 2;
-    /* Default Square Radius */
     border-radius: 4px;
+    gap: 0;
 }
 
 /* Capsule for connected circles */
@@ -312,21 +307,19 @@ main {
     border-radius: calc(var(--block-size) / 2);
 }
 
+/* Sub-blocks hidden by default */
 .sub-block {
-    width: var(--block-size);
-    height: var(--block-size);
-    /* Invisible structure */
-    background-color: transparent;
-    box-shadow: none;
-    border-radius: 0;
-    /* Borders for debugging if needed */
-    /* border: 1px solid rgba(255,255,255,0.2); */
-    flex-shrink: 0;
+    display: none;
 }
 
-/* Specific adjustment for connected circles to look good */
-.block.connected.circle .sub-block {
+/* Dots inside connected blocks (● mode) */
+.block-dot {
+    width: calc(var(--block-size) * 0.55);
+    height: calc(var(--block-size) * 0.55);
     border-radius: 50%;
+    background-color: white;
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.15);
+    flex-shrink: 0;
 }
 
 
@@ -391,10 +384,10 @@ main {
     box-shadow: var(--block-shadow);
     display: flex;
     flex-direction: column;
-    /* Top down in tray */
+    align-items: center;
+    justify-content: space-evenly;
     gap: 0;
     border-radius: 4px;
-    /* Default square */
 }
 
 /* Capsule in Tray */
