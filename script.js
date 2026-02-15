@@ -252,6 +252,15 @@ function renderTray() {
         if (state.blockShape === 'circle') block.classList.add('circle');
         block.draggable = true;
         block.dataset.size = 1;
+        // Add dot if display mode is 'dots'
+        if (state.blockDisplay === 'dots') {
+            block.style.display = 'flex';
+            block.style.alignItems = 'center';
+            block.style.justifyContent = 'center';
+            const dot = document.createElement('div');
+            dot.className = 'block-dot';
+            block.appendChild(dot);
+        }
         trayEl.appendChild(block);
     } else {
         // Connected: Show blocks of size 1 to N (columns)
@@ -891,6 +900,14 @@ function spawnBlockInSlot(slot, size) {
                 block.appendChild(dot);
             }
         }
+    } else if (state.blockDisplay === 'dots') {
+        // Size 1 block with dot
+        block.style.display = 'flex';
+        block.style.alignItems = 'center';
+        block.style.justifyContent = 'center';
+        const dot = document.createElement('div');
+        dot.className = 'block-dot';
+        block.appendChild(dot);
     }
 
     // In equalHeight mode, make block interactive for moving
