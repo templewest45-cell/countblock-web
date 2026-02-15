@@ -176,32 +176,18 @@ main {
     /* For pseudo-elements if needed */
 }
 
-/* Column Boundary Lines */
-.board.show-col-boundary .col-wrapper:not(:last-child) {
-    /* No direct border, using pseudo-element */
-    position: relative;
+/* Column Boundary: left/right borders on each column */
+.board.show-col-boundary .slots-container {
+    border-left: calc(var(--block-size) * 0.25) solid rgba(60, 40, 20, 0.7);
+    border-right: calc(var(--block-size) * 0.25) solid rgba(60, 40, 20, 0.7);
 }
 
-/* Use pseudo-element for boundary line to avoid layout shifts */
-.board.show-col-boundary .col-wrapper:not(:last-child)::after {
-    content: '';
-    position: absolute;
-    right: -11px;
-    /* Half of board gap (20px) approx */
-    top: -10px;
-    /* Start slightly above the highest block */
-    bottom: 0;
-    width: 5px;
-    background-color: transparent;
-    border-right: 5px dashed rgba(60, 40, 20, 0.7);
-    height: auto;
-    /* Span full height */
-}
-
-/* Ceiling: top border on each column's slots */
+/* Ceiling: enclose each column's slots with a frame (top, left, right) */
 .board.show-ceiling .slots-container {
-    border-top: 5px solid rgba(60, 40, 20, 0.7);
-    padding-top: 4px;
+    border-top: calc(var(--block-size) * 0.25) solid rgba(60, 40, 20, 0.7);
+    border-left: calc(var(--block-size) * 0.25) solid rgba(60, 40, 20, 0.7);
+    border-right: calc(var(--block-size) * 0.25) solid rgba(60, 40, 20, 0.7);
+    padding: 2px;
 }
 
 .slots-container {
@@ -545,6 +531,7 @@ main {
     animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
+
 /* Visibility classes */
 .invisible {
     visibility: hidden;
@@ -567,6 +554,23 @@ main {
 }
 
 .maru-mark.show {
+    transform: translateX(-50%) scale(1);
+}
+
+/* Triangle mark for wrong placement */
+.triangle-mark {
+    position: absolute;
+    bottom: -10px;
+    left: 50%;
+    transform: translateX(-50%) scale(0);
+    width: 80%;
+    height: auto;
+    pointer-events: none;
+    z-index: 5;
+    transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.triangle-mark.show {
     transform: translateX(-50%) scale(1);
 }
 

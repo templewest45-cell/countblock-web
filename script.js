@@ -9,6 +9,7 @@ const state = {
     showCeiling: false, // show ceiling at top of each column
     trayRandom: false, // randomize tray order
     boardRandom: false, // randomize board column order
+    equalHeight: false, // all columns same height
     filled: {}, // Map "col-index" -> count of filled blocks
     allComplete: false
 };
@@ -38,6 +39,7 @@ const ceilingInputs = document.getElementsByName('ceiling'); // Ceiling
 const maxColInputs = document.getElementsByName('max-columns'); // New
 const trayOrderInputs = document.getElementsByName('tray-order'); // New
 const boardOrderInputs = document.getElementsByName('board-order'); // Board order
+const equalHeightInputs = document.getElementsByName('equal-height'); // Equal height
 
 function initAudio() {
     if (!audioCtx) {
@@ -322,8 +324,9 @@ function renderBoard() {
         slotsContainer.className = 'slots-container';
         slotsContainer.dataset.colIndex = i;
 
-        // Create slots (height = i)
-        for (let j = 0; j < i; j++) {
+        // Create slots (height depends on equalHeight setting)
+        const slotCount = state.equalHeight ? state.columns : i;
+        for (let j = 0; j < slotCount; j++) {
             const slot = document.createElement('div');
             slot.className = 'slot';
             slot.dataset.col = i;
@@ -339,7 +342,7 @@ function renderBoard() {
         numberTile.className = 'number-tile';
         numberTile.textContent = i;
 
-        // Maru SVG
+        // Maru SVG (correct)
         const maru = document.createElement('div');
         maru.className = 'maru-mark';
         maru.id = `maru-${i}`;
@@ -349,8 +352,19 @@ function renderBoard() {
             </svg>
         `;
 
+        // Triangle mark (wrong placement)
+        const triangle = document.createElement('div');
+        triangle.className = 'triangle-mark';
+        triangle.id = `triangle-${i}`;
+        triangle.innerHTML = `
+            <svg viewBox="0 0 100 100">
+                 <polygon points="50,10 90,85 10,85" stroke="#22c55e" stroke-width="8" fill="none" />
+            </svg>
+        `;
+
         colWrapper.appendChild(slotsContainer);
         colWrapper.appendChild(maru);
+        colWrapper.appendChild(triangle);
         colWrapper.appendChild(numberTile);
         boardEl.appendChild(colWrapper);
     });
@@ -481,6 +495,14 @@ function setupEventListeners() {
         });
     });
 
+    equalHeightInputs.forEach(input => {
+        input.addEventListener('change', (e) => {
+            state.equalHeight = (e.target.value === 'equal');
+            resetGame();
+            adjustBoardScale();
+        });
+    });
+
     // Initial Tray Listeners
     setupTrayListeners();
 
@@ -561,8 +583,15 @@ function setupEventListeners() {
         }
     });
 
-    // Touch support for mobile devices
+    // Handle placed blocks in equalHeight mode - desktop drag
+    boardEl.addEventListener('dragstart', (e) => {
+        if (!state.equalHeight) return;
+        const block = e.target.closest('.block.placed');
+        if (!block) return;
+        handleBoardBlockDragStart(e, block);
+    });
 
+    // Touch support for mobile devices
     // Moved to handleTouchStart/Move/End functions for reusability
 }
 
@@ -615,10 +644,8 @@ function handleTouchStart(e) {
     document.body.appendChild(dragClone);
 }
 
-// Add these to document event listeners in setupEventListeners or init, 
-// but since they are document level, we can just leave them in setupEventListeners 
-// OR refactor because we removed them from the big function.
-// Let's add them back to document level.
+
+
 
 document.addEventListener('touchmove', (e) => {
     if (!dragClone) return;
@@ -705,8 +732,9 @@ function resetGame() {
 }
 
 function getGravityTargetSlots(colIndex, size) {
-    // Only allow the correct size block for each column
-    if (size !== colIndex) return null;
+    // In equalHeight mode, any block can go anywhere
+    // In normal mode, only correct size allowed
+    if (!state.equalHeight && size !== colIndex) return null;
 
     const slotsContainer = document.querySelector(`.slots-container[data-col-index="${colIndex}"]`);
     if (!slotsContainer) return null;
@@ -830,22 +858,159 @@ function addBlockToSlot(slotEl, size = 1, skipValidation = false) {
 function spawnBlockInSlot(slot, size) {
     const block = document.createElement('div');
     block.className = 'block placed'; // Base class
+    block.dataset.size = size; // Store size for moving
     if (state.blockShape === 'circle') block.classList.add('circle');
     if (size > 1) {
         block.classList.add('connected');
-        // Set explicit height to match the slots + gaps
         const gap = 8;
         block.style.height = `calc(var(--block-size) * ${size} + ${gap}px * ${size - 1})`;
+    }
+
+    // In equalHeight mode, make block interactive for moving
+    if (state.equalHeight) {
+        block.setAttribute('draggable', 'true');
+        block.style.cursor = 'grab';
+        block.style.touchAction = 'none';
+        // Add per-element touch listener for reliable detection
+        block.addEventListener('touchstart', (evt) => {
+            if (!state.equalHeight || dragClone) return;
+            if (block.classList.contains('locked')) return;
+            evt.preventDefault();
+            evt.stopPropagation();
+            handleBoardBlockTouchStart(evt, block);
+        }, { passive: false });
     }
 
     slot.appendChild(block);
 }
 
-function checkColumnComplete(colIndex) {
-    // Check all slots in this column
+// Remove block from column (for moving)
+function removeBlockFromColumn(colIndex, size) {
     const slotsContainer = document.querySelector(`.slots-container[data-col-index="${colIndex}"]`);
     if (!slotsContainer) return;
 
+    // Remove the main block
+    const block = slotsContainer.querySelector('.block.placed');
+    if (block) block.remove();
+
+    // Remove spacers
+    slotsContainer.querySelectorAll('.block-spacer').forEach(s => s.remove());
+
+    // Re-show tray block
+    const sourceBlock = trayEl.querySelector(`.draggable-block.source-block[data-size="${size}"]`);
+    if (sourceBlock) sourceBlock.classList.remove('invisible');
+
+    // Hide marks
+    const maru = document.getElementById(`maru-${colIndex}`);
+    if (maru) maru.classList.remove('show');
+    const tri = document.getElementById(`triangle-${colIndex}`);
+    if (tri) tri.classList.remove('show');
+}
+
+// Handle drag start from board block (desktop)
+function handleBoardBlockDragStart(e, block) {
+    if (!block) block = e.target.closest('.block.placed');
+    if (!block) return;
+    if (block.classList.contains('locked')) {
+        e.preventDefault();
+        return;
+    }
+    const slot = block.parentElement;
+    const colIndex = parseInt(slot.dataset.col);
+    const size = parseInt(block.dataset.size || 1);
+
+    e.dataTransfer.setData('text/plain', 'new-block');
+    e.dataTransfer.setData('application/x-block-size', size);
+    e.dataTransfer.effectAllowed = 'move';
+    dragSize = size;
+
+    // Remove block from current column after a tick
+    setTimeout(() => removeBlockFromColumn(colIndex, size), 0);
+}
+
+// Handle touch start from board block (mobile)
+function handleBoardBlockTouchStart(e, block) {
+    if (!block) block = e.target.closest('.block.placed');
+    if (!block) return;
+    const slot = block.parentElement;
+    const colIndex = parseInt(slot.dataset.col);
+    const size = parseInt(block.dataset.size || 1);
+
+    dragSize = size;
+
+    const touch = e.touches[0];
+    const rect = block.getBoundingClientRect();
+
+    // Create drag clone
+    dragClone = block.cloneNode(true);
+    dragClone.style.position = 'fixed';
+    dragClone.style.zIndex = '9999';
+    dragClone.style.pointerEvents = 'none';
+    dragClone.style.opacity = '0.9';
+    dragClone.style.transform = 'scale(1.05)';
+    dragClone.style.willChange = 'transform, left, top';
+    dragClone.style.width = `${rect.width}px`;
+    dragClone.style.height = `${rect.height}px`;
+    dragClone.style.backgroundColor = state.blockColor;
+    dragClone.style.borderRadius = state.blockShape === 'circle' ? `${state.blockSize / 2}px` : '4px';
+    dragClone.style.boxShadow = '2px 4px 10px rgba(0,0,0,0.4)';
+
+    const xOffset = rect.width / 2;
+    const yOffset = rect.height / 2;
+    dragClone.style.left = `${touch.clientX - xOffset}px`;
+    dragClone.style.top = `${touch.clientY - yOffset}px`;
+
+    document.body.appendChild(dragClone);
+
+    // Remove block from current column
+    removeBlockFromColumn(colIndex, size);
+}
+
+function checkColumnComplete(colIndex) {
+    const slotsContainer = document.querySelector(`.slots-container[data-col-index="${colIndex}"]`);
+    if (!slotsContainer) return;
+
+    // In equalHeight mode, check if a connected block is placed
+    if (state.equalHeight && state.blockType === 'connected') {
+        const placedBlock = slotsContainer.querySelector('.block.placed');
+        if (placedBlock) {
+            const placedSize = parseInt(placedBlock.dataset.size || 1);
+            const maru = document.getElementById(`maru-${colIndex}`);
+            const triangle = document.getElementById(`triangle-${colIndex}`);
+
+            if (placedSize === colIndex) {
+                // Correct! Lock the block
+                placedBlock.classList.add('locked');
+                placedBlock.setAttribute('draggable', 'false');
+                placedBlock.style.cursor = 'default';
+                if (triangle) triangle.classList.remove('show');
+                if (maru && !maru.classList.contains('show')) {
+                    setTimeout(() => {
+                        if (maru) maru.classList.add('show');
+                        playFanfareSound('column');
+                        checkAllComplete();
+                    }, 300);
+                }
+            } else {
+                // Wrong placement - show triangle
+                if (maru) maru.classList.remove('show');
+                if (triangle && !triangle.classList.contains('show')) {
+                    setTimeout(() => {
+                        if (triangle) triangle.classList.add('show');
+                    }, 300);
+                }
+            }
+        } else {
+            // No block - hide both marks
+            const maru = document.getElementById(`maru-${colIndex}`);
+            const triangle = document.getElementById(`triangle-${colIndex}`);
+            if (maru) maru.classList.remove('show');
+            if (triangle) triangle.classList.remove('show');
+        }
+        return;
+    }
+
+    // Original logic for non-equalHeight mode
     const slots = slotsContainer.querySelectorAll('.slot');
     const totalSlots = slots.length;
     let filledCount = 0;
@@ -854,12 +1019,10 @@ function checkColumnComplete(colIndex) {
         if (s.children.length > 0) filledCount++;
     });
 
-    // Update state
     if (!state.filled[colIndex]) state.filled[colIndex] = 0;
     state.filled[colIndex] = filledCount;
 
     if (filledCount === totalSlots) {
-        // Only trigger if not already triggered? 
         const maru = document.getElementById(`maru-${colIndex}`);
         if (maru && !maru.classList.contains('show')) {
             setTimeout(() => {
@@ -873,22 +1036,34 @@ function triggerColumnComplete(colIndex) {
     const maru = document.getElementById(`maru-${colIndex}`);
     if (maru) maru.classList.add('show');
     playFanfareSound('column');
-
-    // Check Global Completion
     checkAllComplete();
 }
 
 function checkAllComplete() {
-    // Check if all columns are full
-    let allFull = true;
-    for (let i = 1; i <= state.columns; i++) {
-        if (state.filled[i] < i) {
-            allFull = false;
-            break;
+    let allCorrect = true;
+
+    if (state.equalHeight && state.blockType === 'connected') {
+        // In equalHeight mode, check all columns have the correct block
+        for (let i = 1; i <= state.columns; i++) {
+            const sc = document.querySelector(`.slots-container[data-col-index="${i}"]`);
+            if (!sc) { allCorrect = false; continue; }
+            const block = sc.querySelector('.block.placed');
+            if (!block || parseInt(block.dataset.size || 0) !== i) {
+                allCorrect = false;
+                break;
+            }
+        }
+    } else {
+        // Original logic
+        for (let i = 1; i <= state.columns; i++) {
+            if (state.filled[i] < i) {
+                allCorrect = false;
+                break;
+            }
         }
     }
 
-    if (allFull) {
+    if (allCorrect) {
         state.allComplete = true;
         setTimeout(() => {
             triggerVictory();
